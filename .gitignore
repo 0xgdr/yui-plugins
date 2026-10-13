@@ -3,6 +3,9 @@ node_modules/
 
 # Build output
 dist/
+
+# Local scratch (probes, test data, clones)
+.cache/
 coverage/
 .turbo/
 

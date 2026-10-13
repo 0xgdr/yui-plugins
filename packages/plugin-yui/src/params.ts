@@ -7,7 +7,7 @@ import {
 } from "@elizaos/core";
 import { z } from "zod";
 
-export interface ParamSpec<S extends z.AnyZodObject> {
+export interface ParamSpec<S extends z.ZodObject> {
   action: string;
   schema: S;
   /** Shown to the model, one line per field. */
@@ -39,7 +39,7 @@ function pick(source: unknown, keys: string[]): Record<string, unknown> | null {
  * only the user's own request text. State, recent messages and room content are never part of
  * that prompt, so text posted on Yui can't choose a room, coin or recipient.
  */
-export async function resolveParams<S extends z.AnyZodObject>(
+export async function resolveParams<S extends z.ZodObject>(
   runtime: IAgentRuntime,
   message: Memory,
   state: State | undefined,

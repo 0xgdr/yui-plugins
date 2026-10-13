@@ -19,3 +19,5 @@ jobs:
       - run: bun run lint
       - run: bun test
       - run: bun run --filter @0xgdr/plugin-yui build
+      - run: bun pm pack --dry-run
+        working-directory: packages/plugin-yui

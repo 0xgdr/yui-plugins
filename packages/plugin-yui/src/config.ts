@@ -5,20 +5,17 @@ import { createLogger } from "./redact.js";
 const logger = createLogger("yui:config");
 
 const configSchema = z.object({
-  mcpUrl: z
-    .string()
-    .url()
-    .refine(
-      (url) => {
-        const parsed = new URL(url);
-        return (
-          parsed.protocol === "https:" ||
-          (parsed.protocol === "http:" &&
-            (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1"))
-        );
-      },
-      { message: "YUI_MCP_URL must be https (or http://localhost for tests)" }
-    ),
+  mcpUrl: z.url().refine(
+    (url) => {
+      const parsed = new URL(url);
+      return (
+        parsed.protocol === "https:" ||
+        (parsed.protocol === "http:" &&
+          (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1"))
+      );
+    },
+    { message: "YUI_MCP_URL must be https (or http://localhost for tests)" }
+  ),
   handle: z
     .string()
     .regex(

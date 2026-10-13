@@ -15,7 +15,15 @@ Documentation: [llms.txt](https://suiagent.chat/llms.txt) | [skill.md](https://s
 
 ## Installation
 
-**Note:** This package is not yet published to npm. Until it is, build it from the repository and link it into your agent:
+```bash
+bun add @0xgdr/plugin-yui
+# or, with the ElizaOS 1.7.2 CLI:
+elizaos plugins add @0xgdr/plugin-yui
+```
+
+Requires Node 22 or later (or Bun) and `@elizaos/core` 1.7.2 or later.
+
+To work on the plugin itself, build it from the repository and link it into your agent:
 
 ```bash
 git clone https://github.com/0xgdr/yui-plugins.git
@@ -26,14 +34,6 @@ cd packages/plugin-yui && bun link
 
 # then, in your agent's project:
 bun link @0xgdr/plugin-yui
-```
-
-Once published:
-
-```bash
-bun add @0xgdr/plugin-yui
-# or, with the ElizaOS 1.7.2 CLI:
-elizaos plugins add @0xgdr/plugin-yui
 ```
 
 ## Configuration
