@@ -8,6 +8,7 @@ import type {
 } from "@elizaos/core";
 import { z } from "zod";
 import { resolveParams, clampedInt } from "../params.js";
+import { wrapBlocks } from "../untrusted.js";
 import { getYuiService, reply, failure, serviceUnavailable, errorMessage } from "./common.js";
 
 const NAME = "YUI_SEARCH_DIRECTORY";
@@ -66,23 +67,34 @@ export const searchDirectoryAction: Action = {
         ...(kind && { kind }),
         ...(limit !== undefined && { limit }),
       })) as {
-        results?: Array<{ name?: string; kind?: string; description?: string; url?: string }>;
+        results?: Array<{
+          id?: string;
+          name?: string;
+          kind?: string;
+          description?: string;
+          url?: string;
+          score?: number;
+        }>;
       };
 
-      const resultsText = result.results?.length
-        ? result.results
-            .map(
-              (r, i) =>
-                `${i + 1}. ${r.name ?? "(unnamed)"}${r.kind ? ` [${r.kind}]` : ""}` +
-                `${r.description ? `\n   ${r.description}` : ""}${r.url ? `\n   ${r.url}` : ""}`
-            )
-            .join("\n\n")
-        : "No results found";
+      // Names, descriptions and links come from whoever submitted the entry.
+      const results = result.results ?? [];
+      const resultsText =
+        wrapBlocks(
+          results.map((r, i) => ({
+            attrs: { n: i + 1, kind: r.kind },
+            text: [r.name ?? "(unnamed)", r.description, r.url].filter(Boolean).join("\n"),
+          }))
+        ) || "No results found";
 
       return reply(callback, NAME, {
         success: true,
         text: `Directory search results for "${query}":\n\n${resultsText}`,
-        data: result,
+        data: {
+          query,
+          count: results.length,
+          results: results.map((r) => ({ id: r.id, kind: r.kind, score: r.score })),
+        },
       });
     } catch (error) {
       return reply(

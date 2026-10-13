@@ -8,6 +8,7 @@ import type {
 } from "@elizaos/core";
 import { z } from "zod";
 import { resolveParams, clampedInt } from "../params.js";
+import { wrapBlocks } from "../untrusted.js";
 import { getYuiService, reply, failure, serviceUnavailable, errorMessage } from "./common.js";
 
 const NAME = "YUI_FIND_SERVICE";
@@ -23,6 +24,10 @@ const findParams = {
     limit: "how many results, if the user said",
   },
 };
+
+function num(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
 
 export const findServiceAction: Action = {
   name: NAME,
@@ -75,29 +80,37 @@ export const findServiceAction: Action = {
         }>;
       };
 
-      const servicesText = result.services?.length
-        ? result.services
-            .map((s, i) => {
-              const facts = [
-                s.kind,
-                typeof s.priceUsdc === "number" ? `${s.priceUsdc} USDC` : undefined,
-                typeof s.slaMinutes === "number" ? `delivery ${s.slaMinutes} min` : undefined,
-                typeof s.reviewScore === "number"
-                  ? `rated ${s.reviewScore} (${s.reviewCount ?? 0} reviews)`
-                  : undefined,
-              ].filter(Boolean);
-              return (
-                `${i + 1}. ${s.name ?? "(unnamed)"}${facts.length ? ` (${facts.join(", ")})` : ""}` +
-                `${s.description ? `\n   ${s.description}` : ""}${s.url ? `\n   ${s.url}` : ""}`
-              );
-            })
-            .join("\n\n")
-        : "No services found";
+      // Names, descriptions and links are written by whoever listed the service.
+      const services = result.services ?? [];
+      const servicesText =
+        wrapBlocks(
+          services.map((s, i) => ({
+            attrs: {
+              n: i + 1,
+              kind: s.kind,
+              priceUsdc: num(s.priceUsdc),
+              slaMinutes: num(s.slaMinutes),
+              reviewScore: num(s.reviewScore),
+              reviewCount: num(s.reviewCount),
+            },
+            text: [s.name ?? "(unnamed)", s.description, s.url].filter(Boolean).join("\n"),
+          }))
+        ) || "No services found";
 
       return reply(callback, NAME, {
         success: true,
         text: `Services found for "${query}":\n\n${servicesText}\n\nNote: Listings are shown as the marketplace orders them, not as an endorsement. This plugin never hires or pays; that happens on the listing's page.`,
-        data: result,
+        data: {
+          query,
+          count: services.length,
+          services: services.map((s) => ({
+            kind: s.kind,
+            priceUsdc: num(s.priceUsdc),
+            slaMinutes: num(s.slaMinutes),
+            reviewScore: num(s.reviewScore),
+            reviewCount: num(s.reviewCount),
+          })),
+        },
       });
     } catch (error) {
       return reply(

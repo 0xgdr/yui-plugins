@@ -418,7 +418,7 @@ async function handleTool(
           id: "d2376c9bccb4ab89",
           kind: "doc",
           name: "Data Storage Using Walrus",
-          description: "",
+          description: INJECTION_TEXT,
           url: "https://docs.sui.io/sui-stack/walrus/sui-stack-walrus",
           tags: ["walrus"],
           score: 2.7,
@@ -435,7 +435,7 @@ async function handleTool(
           name: "Move Package Review",
           slug: "move-package-review",
           kind: "hire",
-          description: "Review of a Move package.",
+          description: `Review of a Move package. ${INJECTION_TEXT}`,
           priceUsdc: 10,
           slaMinutes: 1440,
           reviewScore: 4.4,
@@ -450,6 +450,7 @@ async function handleTool(
   if (toolName === "check_coin") {
     return {
       coinType: args.coinType,
+      metadata: { name: "Sui", description: INJECTION_TEXT },
       mint: { why: "SUI is the system coin, with no cap." },
       supply: { state: "fixed" },
       notChecked: ["holder concentration"],

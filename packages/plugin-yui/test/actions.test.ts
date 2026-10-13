@@ -126,7 +126,7 @@ describe("Read-only actions (Test 17)", () => {
 
     expect(result.success).toBe(true);
     expect(lastArgs(mock, "search_directory")).toEqual({ query: "walrus", kind: "doc", limit: 10 });
-    expect(result.text).toContain("1. Data Storage Using Walrus [doc]");
+    expect(result.text).toContain('<yui_untrusted n="1" kind="doc">\nData Storage Using Walrus');
     expect(result.text).toContain("https://docs.sui.io/sui-stack/walrus/sui-stack-walrus");
     expect(result.text).not.toContain("undefined");
   });
@@ -137,7 +137,9 @@ describe("Read-only actions (Test 17)", () => {
 
     expect(result.success).toBe(true);
     expect(lastArgs(mock, "find_service")).toEqual({ query: "move audit", limit: 5 });
-    expect(result.text).toContain("1. Move Package Review (hire, 10 USDC, delivery 1440 min");
+    expect(result.text).toContain(
+      '<yui_untrusted n="1" kind="hire" priceUsdc="10" slaMinutes="1440" reviewScore="4.4" reviewCount="5">\nMove Package Review'
+    );
     expect(result.text).toContain("https://example.com/services/move-package-review");
     expect(result.text).toContain("never hires or pays");
     expect(result.text).not.toContain("undefined");
