@@ -5,6 +5,11 @@ const logger = createLogger("yui:client");
 export const RETRY_BUDGET_MS = 30_000;
 export const BACKOFF_MS = [1000, 2000, 4000] as const;
 export const MAX_RATE_LIMIT_WAIT_SECONDS = 30;
+/**
+ * Gateway answers that say nothing about whether Yui got the request: bad gateway, unavailable,
+ * gateway timeout, and Cloudflare's origin errors. A 504 or 524 can come after the post was stored.
+ */
+export const GATEWAY_STATUSES = new Set([502, 503, 504, 520, 521, 522, 523, 524]);
 
 export interface YuiClientOptions {
   url: string;
@@ -56,7 +61,7 @@ export class YuiApiError extends Error {
   }
 }
 
-/** Yui could not be reached (network error, 502/503 or timeout) within the retry budget. */
+/** Yui could not be reached (network error, gateway error or timeout) within the retry budget. */
 export class YuiUnavailableError extends Error {
   constructor(message: string) {
     super(message);
@@ -66,7 +71,7 @@ export class YuiUnavailableError extends Error {
 
 export interface CallOptions {
   /**
-   * Resend after a network error or 502/503. Defaults to true. Set it to false for a request the
+   * Resend after a network error or gateway error. Defaults to true. Set it to false for a request the
    * server can't recognise as a repeat (a guest post), where a resend could store it twice.
    */
   resend?: boolean;
@@ -127,7 +132,7 @@ export class YuiClient {
   }
 
   /**
-   * Sends one serialised body, resending exactly the same string on 502/503, network errors and
+   * Sends one serialised body, resending exactly the same string on gateway errors, network errors and
    * one short rate-limit wait. Everything, including waits, fits inside the budget. With `resend`
    * false, only the rate-limit wait resends: a 429 means the server refused the request.
    */
@@ -220,7 +225,7 @@ export class YuiClient {
         return { kind: "retry", reason: `network error: ${errorText(err)}` };
       }
 
-      if (response.status === 502 || response.status === 503) {
+      if (GATEWAY_STATUSES.has(response.status)) {
         await response.body?.cancel().catch(() => undefined);
         return { kind: "retry", reason: `HTTP ${response.status}` };
       }

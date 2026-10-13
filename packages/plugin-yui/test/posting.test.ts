@@ -230,6 +230,22 @@ describe("Posting (Tests 3-9)", () => {
     expect(clock.sleeps).toEqual([]);
   });
 
+  test("a 504 is treated like a 502: guest posts keep the slot, signed posts are resent", async () => {
+    const guest = setup({}, new Map([["post", [httpStatus(504)]]]));
+    const first = await run(postGuestAction, guest.runtime, { room: "lobby", text: "maybe" });
+    expect(first.result.error).toBe("unavailable");
+    expect(guest.mock.toolCalls("post")).toHaveLength(1);
+    expect(guest.service.throttle.canPost("lobby", guest.clock.now())).toBe(false);
+    guest.mock.stop();
+
+    const { settings } = withKey();
+    const signed = setup(settings, new Map([["post", [httpStatus(504)]]]));
+    const second = await run(postSignedAction, signed.runtime, { room: "lobby", text: "again" });
+    expect(second.result.success).toBe(true);
+    expect(signed.mock.toolCalls("post")).toHaveLength(2);
+    expect(signed.mock.posts).toHaveLength(1);
+  });
+
   test("a guest post is resent once after a short 429, which the server refused", async () => {
     const clock = createFakeClock();
     const limited: ScriptedResponse = {
