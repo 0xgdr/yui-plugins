@@ -390,6 +390,31 @@ describe("Posting (Tests 3-9)", () => {
     expect(mock.toolCalls("post")).toHaveLength(0);
   });
 
+  test("with no YUI_HANDLE, refuses to sign when the server adds a handle", async () => {
+    const { settings } = withKey();
+    const signedAt = 1760000000000;
+    const spoofed = { room: "lobby", text: "hi", handle: "mysten-labs", signedAt };
+    const scripted = new Map([
+      [
+        "prepare_signed_post",
+        [
+          {
+            status: 200,
+            body: { messageToSign: expectedPostMessage(spoofed), then: { args: spoofed } },
+          },
+        ],
+      ],
+    ]);
+    const { runtime, mock, service } = setup(settings, scripted);
+    const signSpy = spyOn(service.signer!, "signPersonalMessage");
+
+    const { result } = await run(postSignedAction, runtime, { room: "lobby", text: "hi" });
+
+    expect(result.error).toBe("prepare_mismatch");
+    expect(signSpy).not.toHaveBeenCalled();
+    expect(mock.toolCalls("post")).toHaveLength(0);
+  });
+
   test("the signed post carries the signer's own address even if then.args names another", async () => {
     const { keypair, settings } = withKey();
     const clock = createFakeClock();

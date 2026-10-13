@@ -154,14 +154,13 @@ function checkPrepared(
     );
   }
   const a = args as Record<string, unknown>;
-  const handle = a.handle;
+  // The handle must be exactly ours too: with no YUI_HANDLE set, any handle is a different post.
   if (
     a.room !== expected.room ||
     a.text !== expected.text ||
     a.replyTo !== expected.replyTo ||
-    typeof a.signedAt !== "number" ||
-    (handle !== undefined && typeof handle !== "string") ||
-    (expected.handle !== undefined && handle !== expected.handle)
+    a.handle !== expected.handle ||
+    typeof a.signedAt !== "number"
   ) {
     throw new PrepareMismatchError(
       "prepare_signed_post returned arguments for a different post; not signing."
@@ -170,7 +169,7 @@ function checkPrepared(
   const local = expectedPostMessage({
     room: expected.room,
     signedAt: a.signedAt,
-    handle: handle as string | undefined,
+    handle: expected.handle,
     text: expected.text,
     replyTo: expected.replyTo,
   });
