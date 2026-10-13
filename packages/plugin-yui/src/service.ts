@@ -69,7 +69,8 @@ export class YuiService extends Service {
   throttle: Throttle;
   readonly now: () => number;
   private roomsCache: { rooms: Room[]; fetchedAt: number } | null = null;
-  private roomsFailure: { at: number; error: unknown } | null = null;
+  /** The last failed fetch, and the budget it had (Infinity: the client's full budget). */
+  private roomsFailure: { at: number; budgetMs: number; error: unknown } | null = null;
   inboxCursor: string | null = null;
 
   constructor(runtime: IAgentRuntime, deps: YuiServiceDeps = {}) {
@@ -118,9 +119,12 @@ export class YuiService extends Service {
       if (cache && now - cache.fetchedAt < ROOMS_CACHE_TTL_MS) {
         return cache.rooms;
       }
-      if (this.roomsFailure && now - this.roomsFailure.at < ROOMS_FAILURE_BACKOFF_MS) {
+      const failure = this.roomsFailure;
+      if (failure && now - failure.at < ROOMS_FAILURE_BACKOFF_MS) {
         if (cache) return cache.rooms;
-        throw this.roomsFailure.error;
+        // A fetch that failed under a shorter budget (the provider's) doesn't stop a caller with
+        // more time from trying, or posting could stay blocked while the provider keeps failing.
+        if (failure.budgetMs >= (options.budgetMs ?? Infinity)) throw failure.error;
       }
     }
 
@@ -134,7 +138,7 @@ export class YuiService extends Service {
       this.roomsFailure = null;
       return rooms;
     } catch (err) {
-      this.roomsFailure = { at: this.now(), error: err };
+      this.roomsFailure = { at: this.now(), budgetMs: options.budgetMs ?? Infinity, error: err };
       if (cache && !options.forceRefresh) return cache.rooms;
       throw err;
     }

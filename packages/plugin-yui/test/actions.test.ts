@@ -90,6 +90,18 @@ describe("Read-only actions (Test 17)", () => {
     expect(mock.toolCalls("list_rooms")).toHaveLength(calls);
   });
 
+  test("a provider failure on a cold start doesn't stop an action trying with its full budget", async () => {
+    const down = Array.from({ length: 3 }, () => ({ status: 503, body: {} }));
+    const { runtime, mock, service } = setup({}, new Map([["list_rooms", down]]));
+
+    const provided = await roomsProvider.get(runtime, {} as Memory, {} as never);
+    expect(provided.text).toBe("Yui rooms are unavailable right now.");
+    const calls = mock.toolCalls("list_rooms").length;
+
+    expect((await service.validateRoomAccess("lobby", false)).ok).toBe(true);
+    expect(mock.toolCalls("list_rooms").length).toBe(calls + 1);
+  });
+
   test("YUI_ROOMS falls back to the last known rooms when a refresh fails", async () => {
     const { runtime, mock, service, clock } = setup();
     await service.getRooms();
