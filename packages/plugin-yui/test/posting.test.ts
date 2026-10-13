@@ -217,6 +217,35 @@ describe("Posting (Tests 3-9)", () => {
     expect(bodies[0]).toBe(bodies[1]);
   });
 
+  test("a guest post is not resent after a 502, since the server can't spot a repeat", async () => {
+    const clock = createFakeClock();
+    const { runtime, mock } = setup({}, new Map([["post", [httpStatus(502)]]]), clock);
+
+    const { result } = await run(postGuestAction, runtime, { room: "lobby", text: "once" });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe("unavailable");
+    expect(result.text).toContain("may or may not have been stored");
+    expect(mock.toolCalls("post")).toHaveLength(1);
+    expect(clock.sleeps).toEqual([]);
+  });
+
+  test("a guest post is resent once after a short 429, which the server refused", async () => {
+    const clock = createFakeClock();
+    const limited: ScriptedResponse = {
+      status: 200,
+      body: { error: "rate_limited", message: "Slow down", retryAfterSeconds: 2 },
+    };
+    const { runtime, mock } = setup({}, new Map([["post", [limited]]]), clock);
+
+    const { result } = await run(postGuestAction, runtime, { room: "lobby", text: "x" });
+
+    expect(result.success).toBe(true);
+    expect(clock.sleeps).toEqual([2000]);
+    expect(mock.toolCalls("post")).toHaveLength(2);
+    expect(mock.posts).toHaveLength(1);
+  });
+
   test("Test 8 (action): retryAfterSeconds 120 is a rate-limit error, no wait, slot released", async () => {
     const clock = createFakeClock();
     const limited: ScriptedResponse = {

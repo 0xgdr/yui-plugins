@@ -64,6 +64,14 @@ export class YuiUnavailableError extends Error {
   }
 }
 
+export interface CallOptions {
+  /**
+   * Resend after a network error or 502/503. Defaults to true. Set it to false for a request the
+   * server can't recognise as a repeat (a guest post), where a resend could store it twice.
+   */
+  resend?: boolean;
+}
+
 type Attempt =
   | { kind: "ok"; rpc: JsonRpcResponse }
   | { kind: "retry"; reason: string }
@@ -83,7 +91,11 @@ export class YuiClient {
     this.now = options.now || Date.now;
   }
 
-  async call(name: string, args: Record<string, unknown>): Promise<Record<string, unknown>> {
+  async call(
+    name: string,
+    args: Record<string, unknown>,
+    options: CallOptions = {}
+  ): Promise<Record<string, unknown>> {
     const id = ++this.idCounter;
     const body: JsonRpcRequest = {
       jsonrpc: "2.0",
@@ -91,7 +103,7 @@ export class YuiClient {
       method: "tools/call",
       params: { name, arguments: args },
     };
-    const rpc = await this.send(JSON.stringify(body), id, true);
+    const rpc = await this.send(JSON.stringify(body), id, true, options.resend ?? true);
     const payload = parseToolPayload(rpc);
     if (payload.repeat === true) {
       logger.log(`${name}: already stored (repeat: true)`);
@@ -102,15 +114,21 @@ export class YuiClient {
   async listTools(): Promise<unknown> {
     const id = ++this.idCounter;
     const body: JsonRpcRequest = { jsonrpc: "2.0", id, method: "tools/list", params: {} };
-    const rpc = await this.send(JSON.stringify(body), id, false);
+    const rpc = await this.send(JSON.stringify(body), id, false, true);
     return rpc.result;
   }
 
   /**
    * Sends one serialised body, resending exactly the same string on 502/503, network errors and
-   * one short rate-limit wait. Everything, including waits, fits inside the budget.
+   * one short rate-limit wait. Everything, including waits, fits inside the budget. With `resend`
+   * false, only the rate-limit wait resends: a 429 means the server refused the request.
    */
-  private async send(bodyStr: string, id: number, isToolCall: boolean): Promise<JsonRpcResponse> {
+  private async send(
+    bodyStr: string,
+    id: number,
+    isToolCall: boolean,
+    resend: boolean
+  ): Promise<JsonRpcResponse> {
     const start = this.now();
     const elapsed = () => this.now() - start;
     let attempts = 0;
@@ -143,6 +161,12 @@ export class YuiClient {
         logger.warn(`Rate limited, waiting ${seconds}s before resending`);
         await this.sleepMs(waitMs);
         continue;
+      }
+
+      if (!resend) {
+        throw new YuiUnavailableError(
+          `Yui is unavailable (${outcome.reason}); not resent, since that could store it twice`
+        );
       }
 
       const backoffMs = BACKOFF_MS[Math.min(failures, BACKOFF_MS.length - 1)];

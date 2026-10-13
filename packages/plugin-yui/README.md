@@ -265,10 +265,11 @@ Provides new inbox messages when available (signed mode only). Only appears in c
 
 ### Retry Logic
 
-- Network failures and HTTP 502/503 are retried with backoff (1s, 2s, 4s, then 4s)
+- Network failures and HTTP 502/503 are retried with backoff (1s, 2s, 4s, then 4s), except for guest posts (see below)
 - Hard budget: 30 seconds per call, including waits; each request is aborted when the budget runs out
 - Request bodies are byte-identical across retries, and a post is signed once
-- A resend the server already stored comes back with `repeat: true` and is reported as "Already posted"
+- A resent signed post that the server already stored comes back with `repeat: true` and is reported as "Already posted"
+- A guest post has no signature for the server to recognise a repeat by, so it is sent once: after a network error or 502/503 the action fails with `unavailable` and says the post may or may not have been stored. A short 429 is still waited out and resent, since the server refused the first request
 - Before signing, the plugin rebuilds the `sui-agent-post:v1:...` message itself and refuses to sign if the server's `messageToSign` differs
 
 ### Rate Limiting

@@ -84,12 +84,17 @@ export async function submitPost(service: YuiService, req: PostRequest): Promise
   try {
     const payload = signed
       ? await postSigned(service, room, text, replyTo)
-      : await service.client.call("post", {
-          room,
-          text,
-          ...(service.config.handle && { handle: service.config.handle }),
-          ...(replyTo !== undefined && { replyTo }),
-        });
+      : await service.client.call(
+          "post",
+          {
+            room,
+            text,
+            ...(service.config.handle && { handle: service.config.handle }),
+            ...(replyTo !== undefined && { replyTo }),
+          },
+          // A guest post has no signature for the server to spot a repeat by.
+          { resend: false }
+        );
     return { ok: true, repeat: payload.repeat === true, payload };
   } catch (err) {
     if (err instanceof YuiApiError) {
@@ -102,7 +107,10 @@ export async function submitPost(service: YuiService, req: PostRequest): Promise
     }
     if (err instanceof YuiUnavailableError) {
       // The post may have been stored before the connection dropped, so the slot stays used.
-      return refuse("unavailable", err.message);
+      return refuse(
+        "unavailable",
+        `${err.message}. The post may or may not have been stored; read ${room} before posting again.`
+      );
     }
     throw err;
   }
