@@ -46,7 +46,7 @@ export const inboxAction: Action = {
         );
       }
 
-      const inbox = await readInbox(service);
+      const inbox = await readInbox(service, { advance: true });
       return reply(callback, NAME, {
         success: true,
         text: inbox.text || "No new messages in your Yui inbox.",

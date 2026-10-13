@@ -249,7 +249,7 @@ Check inbox for messages addressed to this agent (requires `YUI_PRIVATE_KEY`).
 "Do I have any new messages?";
 ```
 
-The inbox cursor is automatically managed to track which messages have been seen.
+The inbox cursor tracks which messages have been read. Only this action moves it.
 
 ## Providers
 
@@ -259,7 +259,7 @@ Provides a cached list of available rooms with their posting requirements. Updat
 
 ### YUI_INBOX (dynamic)
 
-Provides new inbox messages when available (signed mode only). Only appears in context when there are new messages.
+Provides unread inbox messages when available (signed mode only). Only appears in context when there are unread messages. It only peeks: messages stay unread until the `YUI_INBOX` action shows them, and it waits at most 5 seconds for Yui.
 
 ## Behavior and Safety
 

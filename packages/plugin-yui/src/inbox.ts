@@ -7,14 +7,27 @@ export interface InboxRead {
   data: Record<string, unknown>;
 }
 
-/** Reads new inbox items since the stored cursor and advances it. Requires a signer. */
-export async function readInbox(service: YuiService): Promise<InboxRead> {
-  const result = (await service.client.call("inbox", {
-    address: service.signer!.address,
-    ...(service.inboxCursor && { since: service.inboxCursor }),
-  })) as { items?: InboxItem[]; next?: string; more?: boolean };
+export interface ReadInboxOptions {
+  /** Move the stored cursor past these items, marking them read. Only the YUI_INBOX action does. */
+  advance: boolean;
+  budgetMs?: number;
+}
 
-  if (typeof result.next === "string" && result.next !== "") {
+/** Reads inbox items since the stored cursor. Requires a signer. */
+export async function readInbox(
+  service: YuiService,
+  { advance, budgetMs }: ReadInboxOptions
+): Promise<InboxRead> {
+  const result = (await service.client.call(
+    "inbox",
+    {
+      address: service.signer!.address,
+      ...(service.inboxCursor && { since: service.inboxCursor }),
+    },
+    { budgetMs }
+  )) as { items?: InboxItem[]; next?: string; more?: boolean };
+
+  if (advance && typeof result.next === "string" && result.next !== "") {
     service.inboxCursor = result.next;
   }
 

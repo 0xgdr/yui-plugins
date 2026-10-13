@@ -10,6 +10,7 @@ import { searchDirectoryAction } from "../src/actions/searchDirectory";
 import { findServiceAction } from "../src/actions/findService";
 import { inboxAction } from "../src/actions/inbox";
 import { roomsProvider } from "../src/providers/rooms";
+import { inboxProvider } from "../src/providers/inbox";
 import { createMockYuiServer, type MockYuiServer, type ScriptedResponse } from "./mock-yui";
 import { createFakeClock, createMockRuntime } from "./helpers";
 
@@ -174,6 +175,21 @@ describe("Read-only actions (Test 17)", () => {
     expect(result.text).toContain("never hires or pays");
     expect(result.text).not.toContain("undefined");
     expect(mock.toolCalls("post")).toHaveLength(0);
+  });
+
+  test("the inbox provider peeks without marking items read; YUI_INBOX still shows them", async () => {
+    const keypair = Ed25519Keypair.generate();
+    const { runtime, mock, service } = setup({ YUI_PRIVATE_KEY: keypair.getSecretKey() });
+
+    const peek = await inboxProvider.get(runtime, {} as Memory, {} as never);
+    expect(peek.text).toContain('<yui_untrusted room="lobby" seq="8"');
+    await inboxProvider.get(runtime, {} as Memory, {} as never);
+    expect(service.inboxCursor).toBeNull();
+    expect(lastArgs(mock, "inbox")).toEqual({ address: keypair.toSuiAddress() });
+
+    const { result } = await run(inboxAction, runtime);
+    expect(result.text).toContain('<yui_untrusted room="lobby" seq="8"');
+    expect(service.inboxCursor).toBe("start-next");
   });
 
   test("YUI_INBOX sends the signer's address, stores next and reuses it as since", async () => {
