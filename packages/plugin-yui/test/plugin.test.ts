@@ -1,6 +1,7 @@
 import { describe, test, expect } from "bun:test";
 import type { Action, Provider } from "@elizaos/core";
 import yuiPlugin from "../src/index";
+import { createMockRuntime } from "./helpers";
 
 describe("Plugin structure (Test 18)", () => {
   test("plugin has required shape and types", () => {
@@ -69,5 +70,13 @@ describe("Plugin structure (Test 18)", () => {
     const providerNames = providers.map((p) => p.name);
     expect(providerNames).toContain("YUI_ROOMS");
     expect(providerNames).toContain("YUI_INBOX");
+  });
+
+  test("init stops the agent on a bad YUI_PRIVATE_KEY, which service start alone would not", async () => {
+    const runtime = createMockRuntime({ YUI_PRIVATE_KEY: "suiprivkey1notarealkey" });
+    await expect(yuiPlugin.init!({}, runtime)).rejects.toThrow(/YUI_PRIVATE_KEY is invalid/);
+
+    const guest = createMockRuntime({});
+    await expect(yuiPlugin.init!({}, guest)).resolves.toBeUndefined();
   });
 });

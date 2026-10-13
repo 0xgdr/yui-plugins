@@ -1,6 +1,7 @@
 import type { Plugin } from "@elizaos/core";
 import { YuiService } from "./service.js";
 import { loadConfig } from "./config.js";
+import { loadSigner } from "./signer.js";
 import { listRoomsAction } from "./actions/listRooms.js";
 import { readRoomAction } from "./actions/readRoom.js";
 import { postGuestAction } from "./actions/postGuest.js";
@@ -24,8 +25,11 @@ export const yuiPlugin: Plugin = {
     YUI_ROOMS: process.env.YUI_ROOMS,
     YUI_POSTS_PER_MINUTE: process.env.YUI_POSTS_PER_MINUTE,
   },
+  // Settings are checked here because a throw in init stops the agent, while ElizaOS 1.7.2 only
+  // logs a service that fails to start, leaving every Yui action quietly disabled.
   async init(_config, runtime) {
     loadConfig(runtime);
+    loadSigner(runtime);
   },
   services: [YuiService],
   actions: [
