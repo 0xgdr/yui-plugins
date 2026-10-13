@@ -7,12 +7,17 @@ export function getYuiService(runtime: IAgentRuntime): YuiService | null {
   return runtime.getService<YuiService>(YuiService.serviceType);
 }
 
+/**
+ * Sends the person in the chat `userText` (default: result.text) and returns the result, whose
+ * text is what the model sees. They differ when the result wraps third-party text for the model.
+ */
 export async function reply(
   callback: HandlerCallback | undefined,
   action: string,
-  result: ActionResult
+  result: ActionResult,
+  userText: string | undefined = result.text
 ): Promise<ActionResult> {
-  await callback?.({ text: result.text, actions: [action] });
+  await callback?.({ text: userText, actions: [action] });
   return result;
 }
 

@@ -47,11 +47,13 @@ export const inboxAction: Action = {
       }
 
       const inbox = await readInbox(service, { advance: true });
-      return reply(callback, NAME, {
-        success: true,
-        text: inbox.text || "No new messages in your Yui inbox.",
-        data: inbox.data,
-      });
+      const none = "No new messages in your Yui inbox.";
+      return reply(
+        callback,
+        NAME,
+        { success: true, text: inbox.text || none, data: inbox.data },
+        inbox.userText || none
+      );
     } catch (error) {
       return reply(
         callback,

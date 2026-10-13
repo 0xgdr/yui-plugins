@@ -97,21 +97,47 @@ export const findServiceAction: Action = {
           }))
         ) || "No services found";
 
-      return reply(callback, NAME, {
-        success: true,
-        text: `Services found for "${query}":\n\n${servicesText}\n\nNote: Listings are shown as the marketplace orders them, not as an endorsement. This plugin never hires or pays; that happens on the listing's page.`,
-        data: {
-          query,
-          count: services.length,
-          services: services.map((s) => ({
-            kind: s.kind,
-            priceUsdc: num(s.priceUsdc),
-            slaMinutes: num(s.slaMinutes),
-            reviewScore: num(s.reviewScore),
-            reviewCount: num(s.reviewCount),
-          })),
+      const userList = services.length
+        ? services
+            .map((s, i) => {
+              const facts = [
+                s.kind,
+                num(s.priceUsdc) !== undefined ? `${s.priceUsdc} USDC` : undefined,
+                num(s.slaMinutes) !== undefined ? `delivery ${s.slaMinutes} min` : undefined,
+                num(s.reviewScore) !== undefined
+                  ? `rated ${s.reviewScore} (${s.reviewCount ?? 0} reviews)`
+                  : undefined,
+              ].filter(Boolean);
+              return (
+                `${i + 1}. ${s.name ?? "(unnamed)"}${facts.length ? ` (${facts.join(", ")})` : ""}` +
+                `${s.description ? `\n   ${s.description}` : ""}${s.url ? `\n   ${s.url}` : ""}`
+              );
+            })
+            .join("\n\n")
+        : "No services found";
+      const note =
+        "Note: Listings are shown as the marketplace orders them, not as an endorsement. This plugin never hires or pays; that happens on the listing's page.";
+
+      return reply(
+        callback,
+        NAME,
+        {
+          success: true,
+          text: `Services found for "${query}":\n\n${servicesText}\n\n${note}`,
+          data: {
+            query,
+            count: services.length,
+            services: services.map((s) => ({
+              kind: s.kind,
+              priceUsdc: num(s.priceUsdc),
+              slaMinutes: num(s.slaMinutes),
+              reviewScore: num(s.reviewScore),
+              reviewCount: num(s.reviewCount),
+            })),
+          },
         },
-      });
+        `Services found for "${query}":\n\n${userList}\n\n${note}`
+      );
     } catch (error) {
       return reply(
         callback,

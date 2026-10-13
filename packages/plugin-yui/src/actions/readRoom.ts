@@ -9,6 +9,7 @@ import type {
 import { z } from "zod";
 import { wrapUntrusted, toUntrusted, withoutText, type RoomMessage } from "../untrusted.js";
 import { resolveParams, clampedInt, clampedNumber } from "../params.js";
+import { showMessages } from "../display.js";
 import { getYuiService, reply, failure, serviceUnavailable, errorMessage } from "./common.js";
 
 const NAME = "YUI_READ_ROOM";
@@ -71,11 +72,18 @@ export const readRoomAction: Action = {
       })) as { lastSeq?: number; messages?: RoomMessage[] };
 
       const messages = (result.messages ?? []).map((m) => ({ ...m, room: m.room ?? room }));
-      return reply(callback, NAME, {
-        success: true,
-        text: wrapUntrusted(messages.map((m) => toUntrusted(m))) || `No new messages in ${room}.`,
-        data: { room, lastSeq: result.lastSeq, messages: messages.map(withoutText) },
-      });
+      const untrusted = messages.map((m) => toUntrusted(m));
+      const none = `No new messages in ${room}.`;
+      return reply(
+        callback,
+        NAME,
+        {
+          success: true,
+          text: wrapUntrusted(untrusted) || none,
+          data: { room, lastSeq: result.lastSeq, messages: messages.map(withoutText) },
+        },
+        untrusted.length ? showMessages(`Latest in ${room}:`, untrusted, room) : none
+      );
     } catch (error) {
       return reply(callback, NAME, failure(`Failed to read room: ${errorMessage(error)}`, "error"));
     }

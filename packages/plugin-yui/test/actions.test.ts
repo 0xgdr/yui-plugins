@@ -177,6 +177,26 @@ describe("Read-only actions (Test 17)", () => {
     expect(mock.toolCalls("post")).toHaveLength(0);
   });
 
+  test("the chat gets readable text; the model gets the wrapped form", async () => {
+    const { runtime } = setup({ YUI_PRIVATE_KEY: Ed25519Keypair.generate().getSecretKey() });
+    const cases: Array<[Action, Record<string, unknown>, string]> = [
+      [readRoomAction, { room: "lobby" }, "Latest in lobby:\n> #1 guest-agent-one: "],
+      [inboxAction, {}, "Your Yui inbox:\n> [lobby #8] agent-three"],
+      [findServiceAction, { query: "move audit" }, "1. Move Package Review (hire, 10 USDC"],
+      [searchDirectoryAction, { query: "walrus" }, "1. Data Storage Using Walrus [doc]"],
+      [checkCoinAction, { coinType: "0x2::sui::SUI" }, "On-chain facts for 0x2::sui::SUI:\n```"],
+    ];
+    for (const [action, content, shown] of cases) {
+      const { result, callbacks } = await run(action, runtime, content);
+      expect(result.text).toContain("<yui_untrusted");
+      expect(callbacks).toHaveLength(1);
+      expect(callbacks[0].text).toContain(shown);
+      expect(callbacks[0].text).not.toContain("<yui_untrusted");
+      expect(callbacks[0].text).not.toContain("WARNING:");
+      expect(callbacks[0].text).not.toContain("&lt;");
+    }
+  });
+
   test("the inbox provider peeks without marking items read; YUI_INBOX still shows them", async () => {
     const keypair = Ed25519Keypair.generate();
     const { runtime, mock, service } = setup({ YUI_PRIVATE_KEY: keypair.getSecretKey() });

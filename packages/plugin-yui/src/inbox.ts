@@ -1,8 +1,12 @@
 import type { YuiService } from "./service.js";
 import { wrapUntrusted, toUntrusted, withoutText, type InboxItem } from "./untrusted.js";
+import { showMessages } from "./display.js";
 
 export interface InboxRead {
+  /** Wrapped for the model. */
   text: string;
+  /** Readable, for the person in the chat. */
+  userText: string;
   count: number;
   data: Record<string, unknown>;
 }
@@ -32,8 +36,10 @@ export async function readInbox(
   }
 
   const items = result.items ?? [];
+  const untrusted = items.map((item) => toUntrusted(item.message, item.kind));
   return {
-    text: wrapUntrusted(items.map((item) => toUntrusted(item.message, item.kind))),
+    text: wrapUntrusted(untrusted),
+    userText: untrusted.length ? showMessages("Your Yui inbox:", untrusted) : "",
     count: items.length,
     data: {
       next: result.next,

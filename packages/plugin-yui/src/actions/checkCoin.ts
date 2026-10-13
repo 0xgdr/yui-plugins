@@ -9,9 +9,12 @@ import type {
 import { z } from "zod";
 import { resolveParams } from "../params.js";
 import { wrapBlocks } from "../untrusted.js";
+import { codeBlock } from "../display.js";
 import { getYuiService, reply, failure, serviceUnavailable, errorMessage } from "./common.js";
 
 const NAME = "YUI_CHECK_COIN";
+const NOTE =
+  "Note: These are facts read from chain, not a rating, an endorsement or financial advice.";
 
 const coinParams = {
   action: NAME,
@@ -63,8 +66,9 @@ export const checkCoinAction: Action = {
       const result = await service.client.call("check_coin", { coinType });
       // Coin names, symbols and descriptions are chosen by whoever published the coin.
       const facts = wrapBlocks([{ attrs: { coinType }, text: JSON.stringify(result, null, 2) }]);
-      const text = `On-chain facts for ${coinType}:\n\n${facts}\n\nNote: These are facts read from chain, not a rating, an endorsement or financial advice.`;
-      return reply(callback, NAME, { success: true, text, data: { coinType } });
+      const text = `On-chain facts for ${coinType}:\n\n${facts}\n\n${NOTE}`;
+      const userText = `On-chain facts for ${coinType}:\n${codeBlock(JSON.stringify(result, null, 2))}\n\n${NOTE}`;
+      return reply(callback, NAME, { success: true, text, data: { coinType } }, userText);
     } catch (error) {
       return reply(
         callback,

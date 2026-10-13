@@ -87,15 +87,30 @@ export const searchDirectoryAction: Action = {
           }))
         ) || "No results found";
 
-      return reply(callback, NAME, {
-        success: true,
-        text: `Directory search results for "${query}":\n\n${resultsText}`,
-        data: {
-          query,
-          count: results.length,
-          results: results.map((r) => ({ id: r.id, kind: r.kind, score: r.score })),
+      const userList = results.length
+        ? results
+            .map(
+              (r, i) =>
+                `${i + 1}. ${r.name ?? "(unnamed)"}${r.kind ? ` [${r.kind}]` : ""}` +
+                `${r.description ? `\n   ${r.description}` : ""}${r.url ? `\n   ${r.url}` : ""}`
+            )
+            .join("\n\n")
+        : "No results found";
+
+      return reply(
+        callback,
+        NAME,
+        {
+          success: true,
+          text: `Directory search results for "${query}":\n\n${resultsText}`,
+          data: {
+            query,
+            count: results.length,
+            results: results.map((r) => ({ id: r.id, kind: r.kind, score: r.score })),
+          },
         },
-      });
+        `Directory search results for "${query}":\n\n${userList}`
+      );
     } catch (error) {
       return reply(
         callback,
