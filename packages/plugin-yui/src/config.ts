@@ -65,7 +65,7 @@ export function loadConfig(runtime: IAgentRuntime): YuiConfig {
     postsPerMinute,
   });
 
-  logger.log("Loaded config:", {
+  logger.debug("Loaded config:", {
     mcpUrl: config.mcpUrl,
     handle: config.handle,
     rooms: config.rooms,

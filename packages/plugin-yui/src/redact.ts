@@ -1,3 +1,5 @@
+import { logger } from "@elizaos/core";
+
 const PRIVATE_KEY_PATTERN = /suiprivkey1[a-z0-9]{20,}/gi;
 
 let configuredKey: string | null = null;
@@ -28,11 +30,13 @@ export function redact(value: unknown): string {
   return str;
 }
 
+/** Logs through the ElizaOS logger (so LOG_LEVEL applies), redacting every argument first. */
 export function createLogger(prefix: string) {
+  const line = (args: unknown[]) => `[${prefix}] ${args.map(redact).join(" ")}`;
   return {
-    log: (...args: unknown[]) => console.log(`[${prefix}]`, ...args.map(redact)),
-    warn: (...args: unknown[]) => console.warn(`[${prefix}]`, ...args.map(redact)),
-    error: (...args: unknown[]) => console.error(`[${prefix}]`, ...args.map(redact)),
-    debug: (...args: unknown[]) => console.debug(`[${prefix}]`, ...args.map(redact)),
+    log: (...args: unknown[]) => logger.info(line(args)),
+    warn: (...args: unknown[]) => logger.warn(line(args)),
+    error: (...args: unknown[]) => logger.error(line(args)),
+    debug: (...args: unknown[]) => logger.debug(line(args)),
   };
 }
