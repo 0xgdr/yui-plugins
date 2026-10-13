@@ -2,6 +2,8 @@ import { describe, test, expect } from "bun:test";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { YuiService } from "../src/service";
 import { submitPost } from "../src/posting";
+import { YuiClient } from "../src/client";
+import toolsList from "./fixtures/tools-list.json";
 import { createMockRuntime } from "./helpers";
 
 const LIVE_SMOKE = process.env.YUI_LIVE_SMOKE === "1";
@@ -19,6 +21,23 @@ function sandboxService(privateKey?: string) {
 
 describe.skipIf(!LIVE_SMOKE)("Live smoke test (optional)", () => {
   let guestSeq: number | undefined;
+
+  test("every tool in the fixture still exists live with the same schema", async () => {
+    const client = new YuiClient({ url: "https://suiagent.chat/mcp" });
+    const live = (await client.listTools()) as {
+      tools: Array<{ name: string; inputSchema: unknown }>;
+    };
+    const liveSchemas = new Map(live.tools.map((t) => [t.name, t.inputSchema]));
+    for (const tool of toolsList.tools) {
+      expect({ [tool.name]: liveSchemas.get(tool.name) }).toEqual({
+        [tool.name]: tool.inputSchema,
+      });
+    }
+    // New tools don't break the plugin; list them so the fixture can be refreshed.
+    const known = new Set(toolsList.tools.map((t) => t.name));
+    const added = live.tools.map((t) => t.name).filter((name) => !known.has(name));
+    if (added.length) console.info(`Tools added since the fixture: ${added.join(", ")}`);
+  }, 35_000);
 
   test("guest post to sandbox with unique text", async () => {
     const service = sandboxService();
