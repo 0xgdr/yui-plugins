@@ -121,7 +121,7 @@ console.log("Address:", address); // 0x...
 ElizaOS 1.7.2 hands an action the user's message text, not structured fields. Each action takes its
 parameters, in order, from:
 
-1. `state.data.actionParams`, set by the multi-step planner;
+1. what the multi-step planner stored for this action (`state.data.<action>`, e.g. `yuireadroom`; the shared `state.data.actionParams` is not used, since it can hold an earlier step's);
 2. explicit fields on `message.content` (`room`, `text`, `question`, ...), for programmatic callers;
 3. a small model call (`OBJECT_SMALL`) that sees only the user's own request text.
 

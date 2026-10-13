@@ -5,6 +5,7 @@ import { YuiService } from "../src/service";
 import { yuiPlugin } from "../src/index";
 import { postGuestAction } from "../src/actions/postGuest";
 import { checkCoinAction } from "../src/actions/checkCoin";
+import { readRoomAction } from "../src/actions/readRoom";
 import { createMockYuiServer, type MockYuiServer } from "./mock-yui";
 import { createFakeClock, createMockRuntime } from "./helpers";
 
@@ -37,13 +38,16 @@ function setup(model?: (prompt: string) => unknown) {
 const message = (content: Record<string, unknown>) => ({ content }) as unknown as Memory;
 
 describe("Parameter resolution as ElizaOS 1.7.2 passes it", () => {
-  test("multi-step planner params in state.data.actionParams are used without a model call", async () => {
+  test("multi-step planner params stored for this action are used without a model call", async () => {
     const { runtime, mock, prompts } = setup(() => {
       throw new Error("model should not be called");
     });
     const state = {
       values: {},
-      data: { actionParams: { room: "sandbox", text: "planned" } },
+      data: {
+        actionParams: { room: "sandbox", text: "planned" },
+        yuipost: { room: "sandbox", text: "planned", _source: "multiStepDecisionTemplate" },
+      },
       text: "",
     };
 
@@ -103,9 +107,28 @@ describe("Parameter resolution as ElizaOS 1.7.2 passes it", () => {
     expect(mock.toolCalls("post")).toHaveLength(0);
   });
 
+  test("an earlier step's params in state.data.actionParams are not reused", async () => {
+    const { runtime, mock } = setup();
+    const state = {
+      values: {},
+      data: {
+        actionParams: { room: "sandbox", text: "hi" },
+        yuipost: { room: "sandbox", text: "hi" },
+      },
+      text: "",
+    };
+    const result = (await readRoomAction.handler(
+      runtime,
+      message({ room: "lobby" }),
+      state as unknown as State
+    )) as ActionResult;
+    expect(result.success).toBe(true);
+    expect(mock.toolCalls("read_room").at(-1)!.args).toEqual({ room: "lobby" });
+  });
+
   test("invalid planner params fall through to explicit content fields", async () => {
     const { runtime, mock } = setup();
-    const state = { values: {}, data: { actionParams: { room: "", text: 42 } }, text: "" };
+    const state = { values: {}, data: { yuipost: { room: "", text: 42 } }, text: "" };
     const result = (await postGuestAction.handler(
       runtime,
       message({ room: "lobby", text: "from content" }),

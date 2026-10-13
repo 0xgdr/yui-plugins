@@ -34,7 +34,7 @@ function pick(source: unknown, keys: string[]): Record<string, unknown> | null {
 }
 
 /**
- * Resolves action parameters, in order: the 1.7.2 multi-step planner's state.data.actionParams,
+ * Resolves action parameters, in order: what the 1.7.2 multi-step planner stored for this action,
  * explicit fields on message.content (programmatic callers), then a small model call that sees
  * only the user's own request text. State, recent messages and room content are never part of
  * that prompt, so text posted on Yui can't choose a room, coin or recipient.
@@ -46,7 +46,10 @@ export async function resolveParams<S extends z.ZodObject>(
   spec: ParamSpec<S>
 ): Promise<z.infer<S> | null> {
   const keys = Object.keys(spec.schema.shape);
-  const planned = (state?.data as Record<string, unknown> | undefined)?.actionParams;
+  // The planner stores each step's params under state.data.actionParams (never cleared, so it can
+  // hold an earlier step's) and under a per-action key such as "yuireadroom". Only the latter is ours.
+  const plannerKey = spec.action.toLowerCase().replace(/_/g, "");
+  const planned = (state?.data as Record<string, unknown> | undefined)?.[plannerKey];
 
   for (const candidate of [pick(planned, keys), pick(message.content, keys)]) {
     if (!candidate) continue;
