@@ -1,0 +1,169 @@
+import { describe, test, expect, afterEach } from "bun:test";
+import type { Action, ActionResult, Memory } from "@elizaos/core";
+import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
+import { YuiService } from "../src/service";
+import { listRoomsAction } from "../src/actions/listRooms";
+import { readRoomAction } from "../src/actions/readRoom";
+import { askSuiAction } from "../src/actions/askSui";
+import { checkCoinAction } from "../src/actions/checkCoin";
+import { searchDirectoryAction } from "../src/actions/searchDirectory";
+import { findServiceAction } from "../src/actions/findService";
+import { inboxAction } from "../src/actions/inbox";
+import { roomsProvider } from "../src/providers/rooms";
+import { createMockYuiServer, type MockYuiServer } from "./mock-yui";
+import { createFakeClock, createMockRuntime } from "./helpers";
+
+let mock: MockYuiServer | undefined;
+afterEach(() => {
+  mock?.stop();
+  mock = undefined;
+});
+
+function setup(settings: Record<string, string> = {}) {
+  const clock = createFakeClock();
+  mock = createMockYuiServer({ now: clock.now });
+  const runtime = createMockRuntime({ YUI_MCP_URL: mock.url, ...settings });
+  const service = new YuiService(runtime, clock);
+  runtime.addService(service);
+  return { runtime, mock, service };
+}
+
+async function run(
+  action: Action,
+  runtime: ReturnType<typeof createMockRuntime>,
+  content: Record<string, unknown> = {}
+) {
+  const callbacks: Array<{ text?: string; actions?: string[] }> = [];
+  const result = (await action.handler(
+    runtime,
+    { content } as unknown as Memory,
+    undefined,
+    undefined,
+    async (c) => {
+      callbacks.push(c);
+      return [];
+    }
+  )) as ActionResult;
+  return { result, callbacks };
+}
+
+const lastArgs = (m: MockYuiServer, tool: string) => m.toolCalls(tool).at(-1)!.args;
+
+describe("Read-only actions (Test 17)", () => {
+  test("YUI_LIST_ROOMS renders write mode and the off-topic text", async () => {
+    const { runtime, mock } = setup();
+    const { result, callbacks } = await run(listRoomsAction, runtime);
+
+    expect(result.success).toBe(true);
+    expect(lastArgs(mock, "list_rooms")).toEqual({});
+    expect(result.text).toContain("- lobby (Lobby): anyone can post.");
+    expect(result.text).toContain("- sui-news (Sui news): resident agents only.");
+    expect(result.text).toContain("Off-topic: Long technical threads");
+    expect(callbacks[0].actions).toEqual(["YUI_LIST_ROOMS"]);
+  });
+
+  test("YUI_ROOMS provider gives each room's write mode and off-topic text", async () => {
+    const { runtime } = setup({ YUI_ROOMS: "lobby,sandbox" });
+    const result = await roomsProvider.get(runtime, {} as Memory, {} as never);
+    expect(result.text).toContain("you may post in: lobby, sandbox");
+    expect(result.text).toContain("- signed-only (Signed only): signed posts only.");
+    expect(result.text).toContain("Off-topic: Nothing: it's for testing");
+  });
+
+  test("YUI_READ_ROOM passes after/limit/wait_seconds and wraps each message", async () => {
+    const { runtime, mock } = setup();
+    const { result } = await run(readRoomAction, runtime, {
+      room: "lobby",
+      after: 100,
+      limit: 50,
+      wait_seconds: 10,
+    });
+
+    expect(result.success).toBe(true);
+    expect(lastArgs(mock, "read_room")).toEqual({
+      room: "lobby",
+      after: 100,
+      limit: 50,
+      wait_seconds: 10,
+    });
+    expect(result.text).toContain('<yui_untrusted room="lobby" seq="1" from="guest-agent-one">');
+    expect(result.text).toContain('<yui_untrusted room="lobby" seq="2" from="agent-two">');
+    expect(result.data?.lastSeq).toBe(2);
+  });
+
+  test("YUI_ASK_SUI renders passages with links and code", async () => {
+    const { runtime, mock } = setup();
+    const { result } = await run(askSuiAction, runtime, {
+      question: "How do I publish a Move package?",
+    });
+
+    expect(result.success).toBe(true);
+    expect(lastArgs(mock, "ask_sui")).toEqual({ question: "How do I publish a Move package?" });
+    expect(result.text).toContain("Build and Publish a Package > Publish");
+    expect(result.text).toContain("Run sui client publish");
+    expect(result.text).toContain("https://docs.sui.io/guides/developer/first-app/publish");
+    expect(result.text).not.toContain("undefined");
+  });
+
+  test("YUI_CHECK_COIN sends coinType and presents facts, not advice", async () => {
+    const { runtime, mock } = setup();
+    const { result } = await run(checkCoinAction, runtime, { coinType: "0x2::sui::SUI" });
+
+    expect(result.success).toBe(true);
+    expect(lastArgs(mock, "check_coin")).toEqual({ coinType: "0x2::sui::SUI" });
+    expect(result.text).toContain("SUI is the system coin");
+    expect(result.text).toContain("not a rating, an endorsement or financial advice");
+    expect(result.text).not.toMatch(/\bsafe\b/i);
+  });
+
+  test("YUI_SEARCH_DIRECTORY sends query/kind/limit and renders names and links", async () => {
+    const { runtime, mock } = setup();
+    const { result } = await run(searchDirectoryAction, runtime, {
+      query: "walrus",
+      kind: "doc",
+      limit: 10,
+    });
+
+    expect(result.success).toBe(true);
+    expect(lastArgs(mock, "search_directory")).toEqual({ query: "walrus", kind: "doc", limit: 10 });
+    expect(result.text).toContain("1. Data Storage Using Walrus [doc]");
+    expect(result.text).toContain("https://docs.sui.io/sui-stack/walrus/sui-stack-walrus");
+    expect(result.text).not.toContain("undefined");
+  });
+
+  test("YUI_FIND_SERVICE renders name, price and link, and never pays", async () => {
+    const { runtime, mock } = setup();
+    const { result } = await run(findServiceAction, runtime, { query: "move audit", limit: 5 });
+
+    expect(result.success).toBe(true);
+    expect(lastArgs(mock, "find_service")).toEqual({ query: "move audit", limit: 5 });
+    expect(result.text).toContain("1. Move Package Review (hire, 10 USDC, delivery 1440 min");
+    expect(result.text).toContain("https://example.com/services/move-package-review");
+    expect(result.text).toContain("never hires or pays");
+    expect(result.text).not.toContain("undefined");
+    expect(mock.toolCalls("post")).toHaveLength(0);
+  });
+
+  test("YUI_INBOX sends the signer's address, stores next and reuses it as since", async () => {
+    const keypair = Ed25519Keypair.generate();
+    const { runtime, mock, service } = setup({ YUI_PRIVATE_KEY: keypair.getSecretKey() });
+
+    const first = await run(inboxAction, runtime);
+    expect(first.result.success).toBe(true);
+    expect(lastArgs(mock, "inbox")).toEqual({ address: keypair.toSuiAddress() });
+    expect(service.inboxCursor).toBe("start-next");
+    expect(first.result.text).toContain('<yui_untrusted room="lobby" seq="8" from="agent-three"');
+
+    await run(inboxAction, runtime);
+    expect(lastArgs(mock, "inbox")).toEqual({
+      address: keypair.toSuiAddress(),
+      since: "start-next",
+    });
+    expect(service.inboxCursor).toBe("start-next-next");
+  });
+
+  test("YUI_INBOX validate is false in guest mode", async () => {
+    const { runtime } = setup();
+    expect(await inboxAction.validate(runtime, {} as Memory)).toBe(false);
+  });
+});

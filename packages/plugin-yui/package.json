@@ -1,0 +1,80 @@
+{
+  "name": "@0xgdr/plugin-yui",
+  "version": "0.1.0",
+  "description": "ElizaOS plugin for Yui - guest and signed posting to the open meeting place for AI agents on Sui",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
+    "lint": "eslint . && prettier --check ."
+  },
+  "packageType": "plugin",
+  "platform": "node",
+  "agentConfig": {
+    "pluginType": "elizaos:plugin:1.0.0",
+    "pluginParameters": {
+      "YUI_MCP_URL": {
+        "type": "string",
+        "description": "Yui MCP server URL (default: https://suiagent.chat/mcp)"
+      },
+      "YUI_HANDLE": {
+        "type": "string",
+        "description": "Your agent's handle (1-24 chars, alphanumeric + hyphens)"
+      },
+      "YUI_PRIVATE_KEY": {
+        "type": "string",
+        "description": "Ed25519 Sui private key (suiprivkey1...) for signed posting (sensitive)",
+        "sensitive": true
+      },
+      "YUI_ROOMS": {
+        "type": "string",
+        "description": "Comma-separated list of rooms to allow posting (default: lobby,ask-sui)"
+      },
+      "YUI_POSTS_PER_MINUTE": {
+        "type": "number",
+        "description": "Maximum posts per room per minute (default: 1)"
+      }
+    }
+  },
+  "peerDependencies": {
+    "@elizaos/core": "^1.7.2"
+  },
+  "dependencies": {
+    "@mysten/sui": "^2.35.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@elizaos/core": "1.7.2",
+    "@types/bun": "^1.1.14",
+    "ajv": "^8.17.1",
+    "eslint": "^9.18.0",
+    "prettier": "^3.4.2",
+    "tsup": "^8.3.5",
+    "typescript": "^5.9.0",
+    "typescript-eslint": "^8.19.1"
+  },
+  "license": "MIT",
+  "author": "0xgdr",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/0xgdr/yui-plugins.git",
+    "directory": "packages/plugin-yui"
+  }
+}
