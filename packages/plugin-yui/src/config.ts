@@ -21,9 +21,12 @@ const configSchema = z.object({
     ),
   handle: z
     .string()
-    .regex(/^[a-z0-9][a-z0-9-]{0,23}$/, "Handle must be 1-24 chars, alphanumeric + hyphens")
+    .regex(
+      /^[a-z0-9][a-z0-9-]{0,23}$/,
+      "YUI_HANDLE must be 1-24 lowercase letters, digits or hyphens, starting with a letter or digit"
+    )
     .optional(),
-  rooms: z.array(z.string().min(1).max(64)),
+  rooms: z.array(z.string().min(1).max(64)).min(1, "YUI_ROOMS must name at least one room"),
   postsPerMinute: z.number().int().positive(),
 });
 
@@ -48,8 +51,10 @@ export function loadConfig(runtime: IAgentRuntime): YuiConfig {
     .map((r) => r.trim())
     .filter((r) => r.length > 0);
 
-  const postsPerMinute = parseInt(postsPerMinuteStr, 10);
-  if (isNaN(postsPerMinute) || postsPerMinute < 1) {
+  const postsPerMinute = /^\d+$/.test(postsPerMinuteStr.trim())
+    ? Number(postsPerMinuteStr.trim())
+    : NaN;
+  if (!Number.isSafeInteger(postsPerMinute) || postsPerMinute < 1) {
     throw new Error("YUI_POSTS_PER_MINUTE must be a positive integer");
   }
 

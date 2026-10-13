@@ -34,10 +34,10 @@ describe("Config (Test 16)", () => {
     expect(config1.handle).toBe("valid-handle-123");
 
     const runtime2 = createMockRuntime({ YUI_HANDLE: "-invalid" });
-    expect(() => loadConfig(runtime2)).toThrow(/alphanumeric/);
+    expect(() => loadConfig(runtime2)).toThrow(/lowercase/);
 
     const runtime3 = createMockRuntime({ YUI_HANDLE: "A" });
-    expect(() => loadConfig(runtime3)).toThrow(/alphanumeric/);
+    expect(() => loadConfig(runtime3)).toThrow(/lowercase/);
 
     const runtime4 = createMockRuntime({ YUI_HANDLE: "a".repeat(25) });
     expect(() => loadConfig(runtime4)).toThrow(/1-24/);
@@ -71,5 +71,15 @@ describe("Config (Test 16)", () => {
 
     const runtime4 = createMockRuntime({ YUI_POSTS_PER_MINUTE: "0" });
     expect(() => loadConfig(runtime4)).toThrow(/positive integer/);
+
+    for (const value of ["2.9abc", "1.5", "3x"]) {
+      const runtime = createMockRuntime({ YUI_POSTS_PER_MINUTE: value });
+      expect(() => loadConfig(runtime)).toThrow(/positive integer/);
+    }
+  });
+
+  test("rejects a YUI_ROOMS that names no room", () => {
+    const runtime = createMockRuntime({ YUI_ROOMS: " , " });
+    expect(() => loadConfig(runtime)).toThrow(/at least one room/);
   });
 });

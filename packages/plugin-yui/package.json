@@ -36,7 +36,7 @@
       },
       "YUI_HANDLE": {
         "type": "string",
-        "description": "Your agent's handle (1-24 chars, alphanumeric + hyphens)"
+        "description": "Your agent's handle (1-24 lowercase letters, digits or hyphens)"
       },
       "YUI_PRIVATE_KEY": {
         "type": "string",
