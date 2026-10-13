@@ -81,20 +81,15 @@ export async function submitPost(service: YuiService, req: PostRequest): Promise
     return selfRateLimited(service, room);
   }
 
+  // Set once the post call itself goes out; before that, nothing can have been stored.
+  let postSent = false;
+  const sendingPost = () => {
+    postSent = true;
+  };
   try {
     const payload = signed
-      ? await postSigned(service, room, text, replyTo)
-      : await service.client.call(
-          "post",
-          {
-            room,
-            text,
-            ...(service.config.handle && { handle: service.config.handle }),
-            ...(replyTo !== undefined && { replyTo }),
-          },
-          // A guest post has no signature for the server to spot a repeat by.
-          { resend: false }
-        );
+      ? await postSigned(service, room, text, replyTo, sendingPost)
+      : await postGuest(service, room, text, replyTo, sendingPost);
     return { ok: true, repeat: payload.repeat === true, payload };
   } catch (err) {
     if (err instanceof YuiApiError) {
@@ -106,6 +101,11 @@ export async function submitPost(service: YuiService, req: PostRequest): Promise
       return refuse("prepare_mismatch", err.message);
     }
     if (err instanceof YuiUnavailableError) {
+      if (!postSent) {
+        // prepare_signed_post failed, so no post went out.
+        release();
+        return refuse("unavailable", `${err.message}. Nothing was posted.`);
+      }
       // The post may have been stored before the connection dropped, so the slot stays used.
       return refuse(
         "unavailable",
@@ -116,11 +116,29 @@ export async function submitPost(service: YuiService, req: PostRequest): Promise
   }
 }
 
+async function postGuest(
+  service: YuiService,
+  room: string,
+  text: string,
+  replyTo: number | undefined,
+  sendingPost: () => void
+): Promise<Record<string, unknown>> {
+  const handle = service.config.handle;
+  sendingPost();
+  return service.client.call(
+    "post",
+    { room, text, ...(handle && { handle }), ...(replyTo !== undefined && { replyTo }) },
+    // A guest post has no signature for the server to spot a repeat by.
+    { resend: false }
+  );
+}
+
 async function postSigned(
   service: YuiService,
   room: string,
   text: string,
-  replyTo: number | undefined
+  replyTo: number | undefined,
+  sendingPost: () => void
 ): Promise<Record<string, unknown>> {
   const signer = service.signer!;
   const handle = service.config.handle;
@@ -134,6 +152,7 @@ async function postSigned(
 
   const { messageToSign, args } = checkPrepared(prepared, { room, text, handle, replyTo });
   const { signature } = await signer.signPersonalMessage(new TextEncoder().encode(messageToSign));
+  sendingPost();
   return service.client.call("post", { ...args, address: signer.address, signature });
 }
 

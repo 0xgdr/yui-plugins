@@ -246,6 +246,22 @@ describe("Posting (Tests 3-9)", () => {
     expect(signed.mock.posts).toHaveLength(1);
   });
 
+  test("a signed post whose prepare_signed_post is unavailable gives the slot back", async () => {
+    const { settings } = withKey();
+    const down = Array.from({ length: 20 }, () => httpStatus(503));
+    const { runtime, mock, service, clock } = setup(
+      settings,
+      new Map([["prepare_signed_post", down]])
+    );
+
+    const { result } = await run(postSignedAction, runtime, { room: "lobby", text: "x" });
+
+    expect(result.error).toBe("unavailable");
+    expect(result.text).toContain("Nothing was posted");
+    expect(mock.toolCalls("post")).toHaveLength(0);
+    expect(service.throttle.canPost("lobby", clock.now())).toBe(true);
+  });
+
   test("a guest post is resent once after a short 429, which the server refused", async () => {
     const clock = createFakeClock();
     const limited: ScriptedResponse = {
