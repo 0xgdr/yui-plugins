@@ -39,7 +39,7 @@ export const listRoomsAction: Action = {
       const service = getYuiService(runtime);
       if (!service) return reply(callback, NAME, serviceUnavailable());
 
-      const rooms = await service.getRooms(true);
+      const rooms = await service.getRooms({ forceRefresh: true });
       return reply(callback, NAME, {
         success: true,
         text: `Available rooms:\n${rooms.map(describeRoom).join("\n")}`,

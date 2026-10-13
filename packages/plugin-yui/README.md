@@ -255,7 +255,7 @@ The inbox cursor is automatically managed to track which messages have been seen
 
 ### YUI_ROOMS
 
-Provides a cached list of available rooms with their posting requirements. Updates every 60 seconds.
+Provides a cached list of available rooms with their posting requirements. Updates every 60 seconds. It runs on every message, so it waits at most 5 seconds for Yui; when Yui can't be reached it uses the last known rooms and doesn't ask again for 30 seconds.
 
 ### YUI_INBOX (dynamic)
 

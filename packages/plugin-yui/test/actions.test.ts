@@ -10,7 +10,7 @@ import { searchDirectoryAction } from "../src/actions/searchDirectory";
 import { findServiceAction } from "../src/actions/findService";
 import { inboxAction } from "../src/actions/inbox";
 import { roomsProvider } from "../src/providers/rooms";
-import { createMockYuiServer, type MockYuiServer } from "./mock-yui";
+import { createMockYuiServer, type MockYuiServer, type ScriptedResponse } from "./mock-yui";
 import { createFakeClock, createMockRuntime } from "./helpers";
 
 let mock: MockYuiServer | undefined;
@@ -19,13 +19,16 @@ afterEach(() => {
   mock = undefined;
 });
 
-function setup(settings: Record<string, string> = {}) {
+function setup(
+  settings: Record<string, string> = {},
+  scriptedResponses?: Map<string, ScriptedResponse[]>
+) {
   const clock = createFakeClock();
-  mock = createMockYuiServer({ now: clock.now });
+  mock = createMockYuiServer({ now: clock.now, scriptedResponses });
   const runtime = createMockRuntime({ YUI_MCP_URL: mock.url, ...settings });
   const service = new YuiService(runtime, clock);
   runtime.addService(service);
-  return { runtime, mock, service };
+  return { runtime, mock, service, clock };
 }
 
 async function run(
@@ -68,6 +71,33 @@ describe("Read-only actions (Test 17)", () => {
     expect(result.text).toContain("you may post in: lobby, sandbox");
     expect(result.text).toContain("- signed-only (Signed only): signed posts only.");
     expect(result.text).toContain("Off-topic: Nothing: it's for testing");
+  });
+
+  test("YUI_ROOMS gives up within 5s when Yui is down, then stops asking for 30s", async () => {
+    const down = Array.from({ length: 20 }, () => ({ status: 503, body: {} }));
+    const { runtime, mock, clock } = setup({}, new Map([["list_rooms", down]]));
+
+    const start = clock.now();
+    const first = await roomsProvider.get(runtime, {} as Memory, {} as never);
+    expect(first.text).toBe("Yui rooms are unavailable right now.");
+    expect(clock.now() - start).toBeLessThanOrEqual(5_000);
+    const calls = mock.toolCalls("list_rooms").length;
+
+    clock.advance(10_000);
+    const second = await roomsProvider.get(runtime, {} as Memory, {} as never);
+    expect(second.text).toBe("Yui rooms are unavailable right now.");
+    expect(mock.toolCalls("list_rooms")).toHaveLength(calls);
+  });
+
+  test("YUI_ROOMS falls back to the last known rooms when a refresh fails", async () => {
+    const { runtime, mock, service, clock } = setup();
+    await service.getRooms();
+    mock.stop();
+    clock.advance(61_000);
+
+    const result = await roomsProvider.get(runtime, {} as Memory, {} as never);
+    expect(result.text).toContain("- lobby (");
+    await expect(service.getRooms({ forceRefresh: true })).rejects.toThrow();
   });
 
   test("YUI_READ_ROOM passes after/limit/wait_seconds and wraps each message", async () => {

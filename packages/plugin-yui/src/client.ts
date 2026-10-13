@@ -70,6 +70,8 @@ export interface CallOptions {
    * server can't recognise as a repeat (a guest post), where a resend could store it twice.
    */
   resend?: boolean;
+  /** Total wall time for this call, waits included. Defaults to the client's budget. */
+  budgetMs?: number;
 }
 
 type Attempt =
@@ -103,7 +105,10 @@ export class YuiClient {
       method: "tools/call",
       params: { name, arguments: args },
     };
-    const rpc = await this.send(JSON.stringify(body), id, true, options.resend ?? true);
+    const rpc = await this.send(JSON.stringify(body), id, true, {
+      resend: options.resend ?? true,
+      budgetMs: options.budgetMs ?? this.budgetMs,
+    });
     const payload = parseToolPayload(rpc);
     if (payload.repeat === true) {
       logger.log(`${name}: already stored (repeat: true)`);
@@ -114,7 +119,10 @@ export class YuiClient {
   async listTools(): Promise<unknown> {
     const id = ++this.idCounter;
     const body: JsonRpcRequest = { jsonrpc: "2.0", id, method: "tools/list", params: {} };
-    const rpc = await this.send(JSON.stringify(body), id, false, true);
+    const rpc = await this.send(JSON.stringify(body), id, false, {
+      resend: true,
+      budgetMs: this.budgetMs,
+    });
     return rpc.result;
   }
 
@@ -127,7 +135,7 @@ export class YuiClient {
     bodyStr: string,
     id: number,
     isToolCall: boolean,
-    resend: boolean
+    { resend, budgetMs }: { resend: boolean; budgetMs: number }
   ): Promise<JsonRpcResponse> {
     const start = this.now();
     const elapsed = () => this.now() - start;
@@ -136,7 +144,7 @@ export class YuiClient {
     let waitedForRateLimit = false;
 
     while (true) {
-      const outcome = await this.attempt(bodyStr, id, isToolCall, this.budgetMs - elapsed());
+      const outcome = await this.attempt(bodyStr, id, isToolCall, budgetMs - elapsed(), budgetMs);
       attempts++;
 
       if (outcome.kind === "ok") {
@@ -150,7 +158,7 @@ export class YuiClient {
           waitedForRateLimit ||
           waitMs === undefined ||
           seconds! > MAX_RATE_LIMIT_WAIT_SECONDS ||
-          elapsed() + waitMs >= this.budgetMs
+          elapsed() + waitMs >= budgetMs
         ) {
           throw new YuiApiError("rate_limited", outcome.message, {
             status: 429,
@@ -171,7 +179,7 @@ export class YuiClient {
 
       const backoffMs = BACKOFF_MS[Math.min(failures, BACKOFF_MS.length - 1)];
       failures++;
-      if (elapsed() + backoffMs >= this.budgetMs) {
+      if (elapsed() + backoffMs >= budgetMs) {
         throw new YuiUnavailableError(
           `Yui is unavailable (${outcome.reason}); gave up after ${attempts} attempts in ${elapsed()}ms`
         );
@@ -185,10 +193,11 @@ export class YuiClient {
     bodyStr: string,
     id: number,
     isToolCall: boolean,
-    remainingMs: number
+    remainingMs: number,
+    budgetMs: number
   ): Promise<Attempt> {
     if (remainingMs <= 0) {
-      throw new YuiUnavailableError(`Yui did not answer within ${this.budgetMs}ms`);
+      throw new YuiUnavailableError(`Yui did not answer within ${budgetMs}ms`);
     }
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), remainingMs);
@@ -206,7 +215,7 @@ export class YuiClient {
         });
       } catch (err) {
         if (controller.signal.aborted) {
-          throw new YuiUnavailableError(`Yui did not answer within ${this.budgetMs}ms`);
+          throw new YuiUnavailableError(`Yui did not answer within ${budgetMs}ms`);
         }
         return { kind: "retry", reason: `network error: ${errorText(err)}` };
       }

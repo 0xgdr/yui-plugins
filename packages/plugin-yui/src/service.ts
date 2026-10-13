@@ -1,6 +1,6 @@
 import { Service } from "@elizaos/core";
 import type { IAgentRuntime } from "@elizaos/core";
-import { YuiClient } from "./client.js";
+import { YuiApiError, YuiClient } from "./client.js";
 import { loadConfig, type YuiConfig } from "./config.js";
 import { loadSigner, type Signer } from "./signer.js";
 import { Throttle } from "./throttle.js";
@@ -43,6 +43,17 @@ export function signedOnlyMessage(room: string): string {
   return `${room} requires signed posts; configure YUI_PRIVATE_KEY to post here.`;
 }
 
+export interface GetRoomsOptions {
+  /** Skip the cache and report a failure instead of falling back to the last known rooms. */
+  forceRefresh?: boolean;
+  /** A shorter budget, for callers that run on every message. */
+  budgetMs?: number;
+}
+
+const ROOMS_CACHE_TTL_MS = 60_000;
+/** After a failed fetch, callers get the last known rooms (or the error) without asking again. */
+const ROOMS_FAILURE_BACKOFF_MS = 30_000;
+
 export interface YuiServiceDeps {
   now?: () => number;
   sleepMs?: (ms: number) => Promise<void>;
@@ -58,7 +69,7 @@ export class YuiService extends Service {
   throttle: Throttle;
   readonly now: () => number;
   private roomsCache: { rooms: Room[]; fetchedAt: number } | null = null;
-  private readonly roomsCacheTtlMs = 60_000;
+  private roomsFailure: { at: number; error: unknown } | null = null;
   inboxCursor: string | null = null;
 
   constructor(runtime: IAgentRuntime, deps: YuiServiceDeps = {}) {
@@ -96,26 +107,37 @@ export class YuiService extends Service {
     logger.log("YuiService stopped");
   }
 
-  async getRooms(forceRefresh = false): Promise<Room[]> {
+  /**
+   * The rooms list, cached for 60s. When Yui can't be reached, the last known rooms are used and
+   * no new request is made for 30s, so an outage doesn't slow down every message.
+   */
+  async getRooms(options: GetRoomsOptions = {}): Promise<Room[]> {
     const now = this.now();
-    if (
-      !forceRefresh &&
-      this.roomsCache &&
-      now - this.roomsCache.fetchedAt < this.roomsCacheTtlMs
-    ) {
-      return this.roomsCache.rooms;
+    const cache = this.roomsCache;
+    if (!options.forceRefresh) {
+      if (cache && now - cache.fetchedAt < ROOMS_CACHE_TTL_MS) {
+        return cache.rooms;
+      }
+      if (this.roomsFailure && now - this.roomsFailure.at < ROOMS_FAILURE_BACKOFF_MS) {
+        if (cache) return cache.rooms;
+        throw this.roomsFailure.error;
+      }
     }
 
-    const result = (await this.client.call("list_rooms", {})) as unknown as { rooms: Room[] };
-    this.roomsCache = { rooms: result.rooms, fetchedAt: now };
-    return result.rooms;
-  }
-
-  findRoom(roomId: string): Room | null {
-    if (!this.roomsCache) {
-      return null;
+    try {
+      const result = await this.client.call("list_rooms", {}, { budgetMs: options.budgetMs });
+      if (!Array.isArray(result.rooms)) {
+        throw new YuiApiError("bad_response", "list_rooms did not return a rooms array");
+      }
+      const rooms = result.rooms as Room[];
+      this.roomsCache = { rooms, fetchedAt: now };
+      this.roomsFailure = null;
+      return rooms;
+    } catch (err) {
+      this.roomsFailure = { at: this.now(), error: err };
+      if (cache && !options.forceRefresh) return cache.rooms;
+      throw err;
     }
-    return this.roomsCache.rooms.find((r) => r.id === roomId) || null;
   }
 
   /** Checks the room's write mode. The YUI_ROOMS allowlist is enforced earlier, in submitPost. */
