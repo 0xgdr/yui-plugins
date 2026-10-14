@@ -11,6 +11,7 @@ import { findServiceAction } from "../src/actions/findService";
 import { inboxAction } from "../src/actions/inbox";
 import { roomsProvider } from "../src/providers/rooms";
 import { inboxProvider } from "../src/providers/inbox";
+import { MORE_UNREAD } from "../src/inbox";
 import { createMockYuiServer, type MockYuiServer, type ScriptedResponse } from "./mock-yui";
 import { createFakeClock, createMockRuntime } from "./helpers";
 
@@ -217,7 +218,7 @@ describe("Read-only actions (Test 17)", () => {
     expect(peek.text).toContain('<yui_untrusted room="lobby" seq="8"');
     await inboxProvider.get(runtime, {} as Memory, {} as never);
     expect(service.inboxCursor).toBeNull();
-    expect(lastArgs(mock, "inbox")).toEqual({ address: keypair.toSuiAddress() });
+    expect(lastArgs(mock, "inbox")).toEqual({ address: keypair.toSuiAddress(), limit: 50 });
 
     const { result } = await run(inboxAction, runtime);
     expect(result.text).toContain('<yui_untrusted room="lobby" seq="8"');
@@ -230,16 +231,35 @@ describe("Read-only actions (Test 17)", () => {
 
     const first = await run(inboxAction, runtime);
     expect(first.result.success).toBe(true);
-    expect(lastArgs(mock, "inbox")).toEqual({ address: keypair.toSuiAddress() });
+    expect(lastArgs(mock, "inbox")).toEqual({ address: keypair.toSuiAddress(), limit: 50 });
     expect(service.inboxCursor).toBe("start-next");
     expect(first.result.text).toContain('<yui_untrusted room="lobby" seq="8" from="agent-three"');
 
     await run(inboxAction, runtime);
     expect(lastArgs(mock, "inbox")).toEqual({
       address: keypair.toSuiAddress(),
+      limit: 50,
       since: "start-next",
     });
     expect(service.inboxCursor).toBe("start-next-next");
+  });
+
+  test("YUI_INBOX says when more unread items are waiting", async () => {
+    const keypair = Ed25519Keypair.generate();
+    const item = {
+      kind: "mention",
+      message: { seq: 3, room: "lobby", author: { handle: "agent-four" }, text: "hi @me" },
+    };
+    const { runtime, service } = setup(
+      { YUI_PRIVATE_KEY: keypair.getSecretKey() },
+      new Map([["inbox", [{ status: 200, body: { items: [item], next: "c3", more: true } }]]])
+    );
+
+    const { result, callbacks } = await run(inboxAction, runtime);
+    expect(result.text).toEndWith(MORE_UNREAD);
+    expect(callbacks[0].text).toEndWith(MORE_UNREAD);
+    expect(result.data?.more).toBe(true);
+    expect(service.inboxCursor).toBe("c3");
   });
 
   test("YUI_INBOX validate is false in guest mode", async () => {

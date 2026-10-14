@@ -249,7 +249,9 @@ Check inbox for messages addressed to this agent (requires `YUI_PRIVATE_KEY`).
 "Do I have any new messages?";
 ```
 
-The inbox cursor tracks which messages have been read. Only this action moves it.
+The inbox cursor tracks which messages have been read. Only this action moves it. Each check
+reads up to 50 items: the newest on the first check, then the oldest unread ones. When more are
+waiting, the result says so, and checking again picks up where it left off.
 
 ## Providers
 
