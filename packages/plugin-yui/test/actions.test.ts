@@ -6,6 +6,8 @@ import { listRoomsAction } from "../src/actions/listRooms";
 import { readRoomAction } from "../src/actions/readRoom";
 import { askSuiAction } from "../src/actions/askSui";
 import { checkCoinAction } from "../src/actions/checkCoin";
+import { deepbookMarketAction } from "../src/actions/deepbookMarket";
+import { explainTxAction } from "../src/actions/explainTx";
 import { searchDirectoryAction } from "../src/actions/searchDirectory";
 import { findServiceAction } from "../src/actions/findService";
 import { inboxAction } from "../src/actions/inbox";
@@ -175,6 +177,38 @@ describe("Read-only actions (Test 17)", () => {
     expect(result.text).not.toMatch(/\bsafe\b/i);
   });
 
+  test("YUI_DEEPBOOK_MARKET lists pools in brief, or reads one pool, and never trades", async () => {
+    const { runtime, mock } = setup();
+    const list = await run(deepbookMarketAction, runtime, {});
+    expect(list.result.success).toBe(true);
+    expect(lastArgs(mock, "deepbook_market")).toEqual({});
+    expect(list.result.text).toContain('"activity": "active"');
+    expect(list.result.text).not.toContain("poolId");
+    expect(list.result.text).toContain("not financial advice");
+    expect(list.result.data).toEqual({ pool: undefined, pools: 1 });
+
+    const one = await run(deepbookMarketAction, runtime, { pool: "SUI_USDC" });
+    expect(one.result.success).toBe(true);
+    expect(lastArgs(mock, "deepbook_market")).toEqual({ pool: "SUI_USDC" });
+    expect(one.result.text).toContain('"book"');
+    expect(mock.toolCalls("post")).toHaveLength(0);
+  });
+
+  test("YUI_EXPLAIN_TX sends the digest and network, and presents facts, not advice", async () => {
+    const { runtime, mock } = setup();
+    const digest = "4ZxVayMx1axxVZJ6RVWAb94cj2L8kVjhkfQEbA5GmVaH";
+    const { result } = await run(explainTxAction, runtime, { digest, network: "Testnet" });
+
+    expect(result.success).toBe(true);
+    expect(lastArgs(mock, "explain_tx")).toEqual({ digest, network: "testnet" });
+    expect(result.text).toContain("Swapped 1 SUI for 1.23 USDC.");
+    expect(result.text).toContain("facts, not advice");
+
+    const bad = await run(explainTxAction, runtime, { digest: "not-a-digest" });
+    expect(bad.result.success).toBe(false);
+    expect(mock.toolCalls("explain_tx")).toHaveLength(1);
+  });
+
   test("YUI_SEARCH_DIRECTORY sends query/kind/limit and renders names and links", async () => {
     const { runtime, mock } = setup();
     const { result } = await run(searchDirectoryAction, runtime, {
@@ -213,6 +247,12 @@ describe("Read-only actions (Test 17)", () => {
       [findServiceAction, { query: "move audit" }, "1. Move Package Review (hire, 10 USDC"],
       [searchDirectoryAction, { query: "walrus" }, "1. Data Storage Using Walrus [doc]"],
       [checkCoinAction, { coinType: "0x2::sui::SUI" }, "On-chain facts for 0x2::sui::SUI:\n```"],
+      [deepbookMarketAction, { pool: "SUI_USDC" }, "DeepBook pool SUI_USDC:\n```"],
+      [
+        explainTxAction,
+        { digest: "4ZxVayMx1axxVZJ6RVWAb94cj2L8kVjhkfQEbA5GmVaH" },
+        "What transaction 4ZxVayMx1axxVZJ6RVWAb94cj2L8kVjhkfQEbA5GmVaH did:\n```",
+      ],
     ];
     for (const [action, content, shown] of cases) {
       const { result, callbacks } = await run(action, runtime, content);

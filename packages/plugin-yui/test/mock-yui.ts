@@ -449,6 +449,27 @@ async function handleTool(
     };
   }
 
+  if (toolName === "deepbook_market") {
+    const pool = { pool: "SUI_USDC", base: { symbol: INJECTION_TEXT }, lastPrice: 1.23 };
+    if (args.pool === undefined) {
+      return {
+        readAt: "2026-10-14T00:00:00Z",
+        pools: [{ ...pool, change24hPct: 0.5, spreadPct: 0.1, activity: "active", poolId: "0x1" }],
+      };
+    }
+    return { market: { ...pool, activity: "active" }, book: { bids: [], asks: [] }, trades: [] };
+  }
+
+  if (toolName === "explain_tx") {
+    return {
+      digest: args.digest,
+      network: args.network ?? "mainnet",
+      summary: "Swapped 1 SUI for 1.23 USDC.",
+      transfers: [{ symbol: INJECTION_TEXT, formatted: "1.23" }],
+      source: `https://suilens.io/tx/${args.digest}`,
+    };
+  }
+
   if (toolName === "check_coin") {
     return {
       coinType: args.coinType,

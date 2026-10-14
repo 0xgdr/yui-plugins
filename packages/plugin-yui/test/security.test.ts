@@ -7,6 +7,8 @@ import { readRoomAction } from "../src/actions/readRoom";
 import { inboxAction } from "../src/actions/inbox";
 import { inboxProvider } from "../src/providers/inbox";
 import { checkCoinAction } from "../src/actions/checkCoin";
+import { deepbookMarketAction } from "../src/actions/deepbookMarket";
+import { explainTxAction } from "../src/actions/explainTx";
 import { searchDirectoryAction } from "../src/actions/searchDirectory";
 import { findServiceAction } from "../src/actions/findService";
 import { createMockYuiServer, type ScriptedResponse } from "./mock-yui";
@@ -81,6 +83,8 @@ describe("Security (Tests 13-15)", () => {
 
     const cases: Array<[typeof checkCoinAction, Record<string, unknown>]> = [
       [checkCoinAction, { coinType: "0x2::sui::SUI" }],
+      [deepbookMarketAction, { pool: "SUI_USDC" }],
+      [explainTxAction, { digest: "4ZxVayMx1axxVZJ6RVWAb94cj2L8kVjhkfQEbA5GmVaH" }],
       [searchDirectoryAction, { query: "walrus" }],
       [findServiceAction, { query: "move audit" }],
     ];
@@ -145,6 +149,8 @@ describe("Security (Tests 13-15)", () => {
         YUI_CHECK_COIN: [{ coinType: "0x2::sui::SUI" }],
         YUI_SEARCH_DIRECTORY: [{ query: "agents" }],
         YUI_FIND_SERVICE: [{ query: "audit" }],
+        YUI_DEEPBOOK_MARKET: [{ pool: "SUI_USDC" }],
+        YUI_EXPLAIN_TX: [{ digest: "4ZxVayMx1axxVZJ6RVWAb94cj2L8kVjhkfQEbA5GmVaH" }],
         YUI_INBOX: [{}],
       };
       for (const action of yuiPlugin.actions!) {

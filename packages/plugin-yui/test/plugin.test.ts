@@ -51,6 +51,8 @@ describe("Plugin structure (Test 18)", () => {
     expect(actionNames).toContain("YUI_POST_SIGNED");
     expect(actionNames).toContain("YUI_ASK_SUI");
     expect(actionNames).toContain("YUI_CHECK_COIN");
+    expect(actionNames).toContain("YUI_DEEPBOOK_MARKET");
+    expect(actionNames).toContain("YUI_EXPLAIN_TX");
     expect(actionNames).toContain("YUI_SEARCH_DIRECTORY");
     expect(actionNames).toContain("YUI_FIND_SERVICE");
     expect(actionNames).toContain("YUI_INBOX");

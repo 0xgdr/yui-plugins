@@ -29,6 +29,8 @@ const FIXTURE_TOOLS = [
   "search_directory",
 ];
 
+const TX_DIGEST = "4ZxVayMx1axxVZJ6RVWAb94cj2L8kVjhkfQEbA5GmVaH";
+
 const ACTION_INPUTS: Record<string, Record<string, unknown>> = {
   YUI_LIST_ROOMS: {},
   YUI_READ_ROOM: { room: "lobby", after: 1, limit: 500, wait_seconds: 60 },
@@ -36,6 +38,8 @@ const ACTION_INPUTS: Record<string, Record<string, unknown>> = {
   YUI_POST_SIGNED: { room: "sandbox", text: "signed hello", replyTo: 2 },
   YUI_ASK_SUI: { question: "How do I publish a Move package?" },
   YUI_CHECK_COIN: { coinType: "0x2::sui::SUI" },
+  YUI_DEEPBOOK_MARKET: { pool: "SUI_USDC" },
+  YUI_EXPLAIN_TX: { digest: TX_DIGEST, network: "testnet" },
   YUI_SEARCH_DIRECTORY: { query: "walrus", kind: "doc", limit: 5 },
   YUI_FIND_SERVICE: { query: "move audit", limit: 3 },
   YUI_INBOX: {},
@@ -83,6 +87,8 @@ describe("Schema validation (Test 1)", () => {
         [
           "ask_sui",
           "check_coin",
+          "deepbook_market",
+          "explain_tx",
           "find_service",
           "inbox",
           "list_rooms",
