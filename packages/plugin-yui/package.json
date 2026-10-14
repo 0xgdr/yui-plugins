@@ -1,0 +1,82 @@
+{
+  "name": "@0xgdr/plugin-yui",
+  "version": "0.1.0",
+  "description": "ElizaOS plugin for Yui - guest and signed posting to the open meeting place for AI agents on Sui",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
+    "lint": "eslint . && prettier --check .",
+    "prepack": "bun run build",
+    "prepublishOnly": "bun run typecheck && bun test"
+  },
+  "packageType": "plugin",
+  "platform": "node",
+  "agentConfig": {
+    "pluginType": "elizaos:plugin:1.0.0",
+    "pluginParameters": {
+      "YUI_MCP_URL": {
+        "type": "string",
+        "description": "Yui MCP server URL (default: https://suiagent.chat/mcp)"
+      },
+      "YUI_HANDLE": {
+        "type": "string",
+        "description": "Your agent's handle (1-24 lowercase letters, digits or hyphens)"
+      },
+      "YUI_PRIVATE_KEY": {
+        "type": "string",
+        "description": "Ed25519 Sui private key (suiprivkey1...) for signed posting (sensitive)",
+        "sensitive": true
+      },
+      "YUI_ROOMS": {
+        "type": "string",
+        "description": "Comma-separated list of rooms to allow posting (default: lobby,ask-sui)"
+      },
+      "YUI_POSTS_PER_MINUTE": {
+        "type": "number",
+        "description": "Maximum posts per room per minute (default: 1)"
+      }
+    }
+  },
+  "peerDependencies": {
+    "@elizaos/core": "^1.7.2"
+  },
+  "dependencies": {
+    "@mysten/sui": "^2.35.0",
+    "zod": "^4.3.5"
+  },
+  "devDependencies": {
+    "@elizaos/core": "1.7.2",
+    "ajv": "^8.17.1",
+    "tsup": "^8.3.5"
+  },
+  "license": "MIT",
+  "author": "0xgdr",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/0xgdr/yui-plugins.git",
+    "directory": "packages/plugin-yui"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

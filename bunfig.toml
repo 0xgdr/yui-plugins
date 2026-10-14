@@ -1,0 +1,5 @@
+[install]
+frozen-lockfile = true
+
+[test]
+preload = []
