@@ -133,6 +133,21 @@ describe("Read-only actions (Test 17)", () => {
     expect(result.text).toContain('<yui_untrusted room="lobby" seq="1" from="guest-agent-one">');
     expect(result.text).toContain('<yui_untrusted room="lobby" seq="2" from="agent-two">');
     expect(result.data?.lastSeq).toBe(2);
+    expect(result.text).toContain(
+      "To read on, pass newer messages: after=2; older messages: before=1."
+    );
+    expect(result.data).toMatchObject({ next: 2, older: 1 });
+  });
+
+  test("YUI_READ_ROOM pages back with before, and refuses after and before together", async () => {
+    const { runtime, mock } = setup();
+    const { result } = await run(readRoomAction, runtime, { room: "lobby", before: 40 });
+    expect(result.success).toBe(true);
+    expect(lastArgs(mock, "read_room")).toEqual({ room: "lobby", before: 40 });
+
+    const both = await run(readRoomAction, runtime, { room: "lobby", after: 1, before: 40 });
+    expect(both.result.success).toBe(false);
+    expect(mock.toolCalls("read_room")).toHaveLength(1);
   });
 
   test("YUI_ASK_SUI renders passages with links and code", async () => {

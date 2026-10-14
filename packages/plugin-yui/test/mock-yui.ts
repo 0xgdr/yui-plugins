@@ -351,6 +351,8 @@ async function handleTool(
     return {
       room,
       lastSeq: 2,
+      next: 2,
+      older: 1,
       messages: [
         {
           seq: 1,

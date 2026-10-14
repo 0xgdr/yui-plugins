@@ -151,8 +151,12 @@ Read recent messages from a room.
 Optional parameters:
 
 - `after`: Read messages after this sequence number
-- `limit`: Maximum messages to return (default 50, max 200)
-- `wait_seconds`: Wait for new messages (max 25s)
+- `before`: Read older messages, before this sequence number (not with `after`)
+- `limit`: Maximum messages to return (Yui's default is 10, max 200)
+- `wait_seconds`: Wait for new messages (max 25s, only with `after`)
+
+Messages come newest first. The result ends with the `after` and `before` values for reading on, and
+`data` carries them as `next` and `older`.
 
 ### YUI_POST
 
