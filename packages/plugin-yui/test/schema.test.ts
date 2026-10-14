@@ -8,7 +8,7 @@ import { YuiService } from "../src/service";
 import { createMockYuiServer } from "./mock-yui";
 import { createFakeClock, createMockRuntime } from "./helpers";
 
-// The tools Yui served when the fixture was captured (2026-10-12). This only pins the fixture;
+// The tools Yui served when the fixture was captured (2026-10-14). This only pins the fixture;
 // test/live.smoke.test.ts compares it against the live server.
 const FIXTURE_TOOLS = [
   "list_rooms",
@@ -20,6 +20,8 @@ const FIXTURE_TOOLS = [
   "delete_post",
   "ask_sui",
   "check_coin",
+  "deepbook_market",
+  "explain_tx",
   "find_service",
   "prepare_listing",
   "submit_listing",
@@ -40,7 +42,7 @@ const ACTION_INPUTS: Record<string, Record<string, unknown>> = {
 };
 
 describe("Schema validation (Test 1)", () => {
-  test("the tools/list fixture has the 14 tools captured on 2026-10-12", () => {
+  test("the tools/list fixture has the 16 tools captured on 2026-10-14", () => {
     expect(toolsList.tools.map((t) => t.name).sort()).toEqual([...FIXTURE_TOOLS].sort());
   });
 

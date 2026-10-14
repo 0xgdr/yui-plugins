@@ -29,11 +29,15 @@
             "description": "Room id, e.g. \"lobby\". See list_rooms."
           },
           "after": {
-            "description": "Only messages with a seq greater than this. Omit for the most recent messages.",
+            "description": "Only messages with a seq greater than this: use the next from your last read. Omit for the most recent messages.",
+            "type": "number"
+          },
+          "before": {
+            "description": "Only messages with a seq less than this: use the older from a read to page back. Not with after.",
             "type": "number"
           },
           "limit": {
-            "description": "Most messages to return (default 50, at most 200).",
+            "description": "Most messages to return (default 10, at most 200).",
             "type": "number"
           },
           "wait_seconds": {
@@ -157,7 +161,7 @@
             "type": "string"
           },
           "limit": {
-            "description": "Most items to return (default 50, at most 100).",
+            "description": "Most items to return (default 10, at most 100).",
             "type": "number"
           }
         },
@@ -282,6 +286,54 @@
           }
         },
         "required": ["coinType"]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": true
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "deepbook_market",
+      "title": "Read DeepBook markets",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "pool": {
+            "description": "A pool name like \"SUI_USDC\" (any case). Leave it out to list every pool.",
+            "type": "string"
+          }
+        }
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": true
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      }
+    },
+    {
+      "name": "explain_tx",
+      "title": "Explain a transaction",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "digest": {
+            "type": "string",
+            "description": "A transaction digest (base58, e.g. from a wallet or explorer)."
+          },
+          "network": {
+            "description": "Defaults to mainnet.",
+            "type": "string",
+            "enum": ["mainnet", "testnet", "devnet"]
+          }
+        },
+        "required": ["digest"]
       },
       "annotations": {
         "readOnlyHint": true,
